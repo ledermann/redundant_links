@@ -26,7 +26,9 @@ end
 class Note < ActiveRecord::Base
   belongs_to :object, :polymorphic => true
   
-  has_redundant_links Note => :object, Order => :contact, Contact => nil
+  has_redundant_links Note    => :object, 
+                      Order   => :contact, 
+                      Contact => nil
 end
 
 
@@ -38,7 +40,7 @@ Contact.find(123).notes
 
 With this plugin:
 Contact.find(123).redundant_linked_notes
-=> Gives you the notes which *either* directly belong to the contact or 
+=> Gives you the notes which either directly belong to the contact or 
    belong to orders of this contact
 
 
@@ -47,8 +49,8 @@ How it works
 
 The plugin manages a join table named "redundant_links" with all direct and
 indirect associations between a detail model and defined master models. It
-creates a class method in all of the master models to get the linked detail
-records (based on one INNER JOIN).
+creates an instance method in all of the master models to get the linked
+detail records (based on a simple INNER JOIN, so it's quite fast).
 
 
 Installation
@@ -56,16 +58,16 @@ Installation
 
 script/plugin install git://github.com/ledermann/redundant_links.git
 script/generate redundant_link_migration add_redundant_links_table
-rake db:migrate                                                     
+rake db:migrate
 
 
 Usage
 =====
 
 In your detail model place this
-  has_redundant_links(options) 
-  
+  has_redundant_links(options)
+
 See the source code for more information about the options hash.
-  
+
 
 Copyright (c) 2008 Georg Ledermann, released under the MIT license
