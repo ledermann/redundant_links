@@ -12,11 +12,12 @@ def setup_db
   ActiveRecord::Schema.define(:version => 1) do
     create_table :contacts do |t|
       t.column :name, :string
+      t.column :type, :string
     end
     
     create_table :orders do |t|
       t.column :number, :string
-      t.column :contact_id, :integer
+      t.column :customer_id, :integer
     end
     
     create_table :notes do |t|
@@ -41,24 +42,26 @@ def teardown_db
 end
 
 class Contact < ActiveRecord::Base
+end
+class Customer < Contact
   has_many :orders
   has_many :notes, :as => :object
 end
 class Order < ActiveRecord::Base
-  belongs_to :contact
+  belongs_to :customer
   has_many :notes, :as => :object
 end
 class Note < ActiveRecord::Base
   belongs_to :object, :polymorphic => true
   
-  has_redundant_links Note => :object, Order => :contact, Contact => nil
+  has_redundant_links Note => :object, Order => :customer, Customer => nil
 end
 
 class RedundantLinksTest < Test::Unit::TestCase
   def setup
     setup_db
-    @contact = Contact.create!
-    @order = @contact.orders.create!
+    @customer = Customer.create!
+    @order = @customer.orders.create!
     @note = @order.notes.create!
   end
 
@@ -68,36 +71,36 @@ class RedundantLinksTest < Test::Unit::TestCase
 
   def test_links
     assert_equal 2, RedundantLink.count
-    assert_equal 1, @contact.redundant_links.count
+    assert_equal 1, @customer.redundant_links.count
     assert_equal 1, @order.redundant_links.count
   end
   
   def test_linked_notes
     assert_equal @note, @order.redundant_linked_notes.first
-    assert_equal @note, @contact.redundant_linked_notes.first
+    assert_equal @note, @customer.redundant_linked_notes.first
   end
   
   def test_change_note
-    other_order = @contact.orders.create!
+    other_order = @customer.orders.create!
     @note.update_attributes! :object => other_order
     assert_equal 0, @order.redundant_links.count
     assert_equal 1, other_order.redundant_links.count
   end
   
-  def test_change_order_to_other_contact
+  def test_change_order_to_other_customer
     last_max = RedundantLink.maximum(:id)
-    other_contact = Contact.create!
-    @order.update_attributes! :contact => other_contact
-    assert_equal 0, @contact.redundant_links.count
-    assert_equal 1, other_contact.redundant_links.count
+    other_customer = Customer.create!
+    @order.update_attributes! :customer => other_customer
+    assert_equal 0, @customer.redundant_links.count
+    assert_equal 1, other_customer.redundant_links.count
     assert_not_equal last_max, RedundantLink.maximum(:id)
   end
 
   def test_change_order_to_nil_contact
     last_count = RedundantLink.count
     last_max = RedundantLink.maximum(:id)
-    @order.update_attributes! :contact => nil
-    assert_equal 0, @contact.redundant_links.count
+    @order.update_attributes! :customer => nil
+    assert_equal 0, @customer.redundant_links.count
     assert_not_equal last_max, RedundantLink.maximum(:id)
     assert_equal last_count-1, RedundantLink.count
   end
@@ -105,7 +108,7 @@ class RedundantLinksTest < Test::Unit::TestCase
   def test_change_order_other_attribute
     last_max = RedundantLink.maximum(:id)
     @order.update_attributes! :number => 'new number'
-    assert_equal 1, @contact.redundant_links.count
+    assert_equal 1, @customer.redundant_links.count
     assert_equal last_max, RedundantLink.maximum(:id)
   end
   
@@ -113,17 +116,17 @@ class RedundantLinksTest < Test::Unit::TestCase
     order = Order.create!
     note = order.notes.create!
 
-    assert_equal false, @contact.redundant_linked_notes.include?(note)
+    assert_equal false, @customer.redundant_linked_notes.include?(note)
     last_count = RedundantLink.count
-    order.update_attributes :contact => @contact
-    assert_equal true, @contact.redundant_linked_notes.include?(note)
+    order.update_attributes :customer => @customer
+    assert_equal true, @customer.redundant_linked_notes.include?(note)
     assert_equal last_count+1, RedundantLink.count
   end
   
   def test_delete
     @note.destroy
-    assert_equal 0, @contact.redundant_links.count
-    assert_equal 0, @contact.redundant_linked_notes.count
+    assert_equal 0, @customer.redundant_links.count
+    assert_equal 0, @customer.redundant_linked_notes.count
     assert_equal 0, @order.redundant_links.count
     assert_equal 0, @order.redundant_linked_notes.count
   end

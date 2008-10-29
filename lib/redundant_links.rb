@@ -50,8 +50,8 @@ module RedundantLinks
 
           # Generate scope
           def redundant_linked_#{self.to_s.tableize}
-            #{self}.scoped :joins => "INNER JOIN redundant_links ON (redundant_links.to_id     = \#{self.id}
-                                                                 AND redundant_links.to_type   = '#{klass.to_s}'
+            #{self}.scoped :joins => "INNER JOIN redundant_links ON (redundant_links.to_id     = \#{self.id.is_a?(String) ? '"' + self.id + '"' : self.id }
+                                                                 AND redundant_links.to_type   = '#{klass.base_class}'
                                                                  AND redundant_links.from_id   = #{self.to_s.tableize}.id
                                                                  AND redundant_links.from_type = '#{self}')"
           end
@@ -67,13 +67,13 @@ module RedundantLinks
               targets.each do |target|              
                 if target_object = self.send(target)
                   if first_record
-                    changed = true if not RedundantLink.exists?(:from_id => first_record.id, :from_type => first_record.class.to_s, :to_id => target_object.id, :to_type => target_object.class.to_s)
+                    changed = true if not RedundantLink.exists?(:from_id => first_record.id, :from_type => first_record.class.base_class.to_s, :to_id => target_object.id, :to_type => target_object.class.base_class.to_s)
                   else
                     changed = true
                   end
                 else
                   if first_record
-                    changed = true if RedundantLink.exists?(:from_id => first_record.id, :from_type => first_record.class.to_s)
+                    changed = true if RedundantLink.exists?(:from_id => first_record.id, :from_type => first_record.class.base_class.to_s)
                   end
                 end
               
