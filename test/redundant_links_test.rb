@@ -129,9 +129,11 @@ class RedundantLinksTest < Test::Unit::TestCase
   end
   
   def test_rebuild
-    RedundantLink.destroy_all
+    before_count = RedundantLink.count
+    RedundantLink.delete_all
     assert_equal 0, RedundantLink.count
+    
     Note.rebuild_redundant_links
-    assert_equal 2, RedundantLink.count
+    assert_equal before_count, RedundantLink.count
   end
 end
