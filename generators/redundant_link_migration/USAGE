@@ -1,0 +1,7 @@
+Description:
+	The redundant link migration generator creates a migration to add the redundant_links table.
+
+Example:
+    ./script/generate redundant_link_migration add_redundant_links_table
+
+    This will create a migration in db/migrate/.  Run "rake db:migrate" to update your database.

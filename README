@@ -1,0 +1,32 @@
+RedundantLinks
+==============
+
+Automatic creation of redundant links to multiple associations.
+
+
+Example
+=======
+
+class Contact < ActiveRecord::Base
+  has_many :orders
+  has_many :notes, :as => :object
+end
+
+class Order < ActiveRecord::Base
+  belongs_to :contact
+  has_many :notes, :as => :object
+end
+
+class Note < ActiveRecord::Base
+  belongs_to :object, :polymorphic => true
+  
+  has_redundant_links Note => :object, Order => :contact, Contact => nil
+end
+
+Now you can do:
+
+Contact.find(123).redundant_linked_notes
+=> notes directly linked to comments AND linked to orders of this contact
+
+
+Copyright (c) 2008 Georg Ledermann, released under the MIT license
