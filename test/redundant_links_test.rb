@@ -135,5 +135,8 @@ class RedundantLinksTest < Test::Unit::TestCase
     
     Note.rebuild_redundant_links
     assert_equal before_count, RedundantLink.count
+    
+    Note.rebuild_redundant_links
+    assert_equal before_count, RedundantLink.count
   end
 end

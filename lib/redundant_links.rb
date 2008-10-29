@@ -98,7 +98,7 @@ module RedundantLinks
       self.class_eval do
         def self.rebuild_redundant_links
           transaction do
-            RedundantLink.delete_all :from_type => self.class.to_s
+            RedundantLink.delete_all :from_type => self.to_s
         
             find(:all).each do |record| 
               record.send :create_all_redundant_links
