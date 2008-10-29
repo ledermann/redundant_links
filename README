@@ -1,11 +1,17 @@
-RedundantLinks
-==============
+redundant_links
+===============
 
-Automatic creation of redundant links to multiple associations.
+Automatic handling of a join table for indirect associations
+Plugin for Ruby on Rails
 
 
 Example
 =======
+
+Assume you have contacts who can place multiple orders. In addition, contacts 
+and orders may have multiple notes. This plugin helps you to get the notes
+of a contact, even if they belong to one of its orders. This is just a simple
+example. Of course it works in more complex situations, too.
 
 class Contact < ActiveRecord::Base
   has_many :orders
@@ -23,10 +29,43 @@ class Note < ActiveRecord::Base
   has_redundant_links Note => :object, Order => :contact, Contact => nil
 end
 
+
 Now you can do:
 
-Contact.find(123).redundant_linked_notes
-=> notes directly linked to comments AND linked to orders of this contact
+With plain Rails magic:
+Contact.find(123).notes
+=> Gives you only the notes which directly belong to the contact
 
+With this plugin:
+Contact.find(123).redundant_linked_notes
+=> Gives you the notes which *either* directly belong to the contact or 
+   belong to orders of this contact
+
+
+How it works
+============
+
+The plugin manages a join table named "redundant_links" with all direct and
+indirect associations between a detail model and defined master models. It
+creates a class method in all of the master models to get the linked detail
+records (based on one INNER JOIN).
+
+
+Installation
+============
+
+script/plugin install git://github.com/ledermann/redundant_links.git
+script/generate redundant_link_migration add_redundant_links_table
+rake db:migrate                                                     
+
+
+Usage
+=====
+
+In your detail model place this
+  has_redundant_links(options) 
+  
+See the source code for more information about the options hash.
+  
 
 Copyright (c) 2008 Georg Ledermann, released under the MIT license

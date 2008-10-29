@@ -5,13 +5,35 @@ module RedundantLinks
   end
   
   module ClassMethods
+    
+    # Call this method in your model to add the features of this plugin
+    #
+    # === Options
+    #
+    # The method expects a hash with the classes as keys and the association fields as values
+    #
+    #
+    # === Example
+    #
+    # class Note << ActiveRecord::Base
+    #   has_redundant_links Note => :object, 
+    #                       Order => :contact, 
+    #                       Contact => nil
+    # end
+    #  
+    # == Created methods
+    #  
+    # * Instance method <tt>redundant_linked_notes</tt> for Order and Contact
+    # * Class method <tt>rebuild_redundant_links</tt> for Note (useful for first time fill up of the join table)
+    #
+    # For creating and updating the join table there are some hooks installed
     def has_redundant_links(options)
-      raise ArgumentError, "Parameter 'options' should be a Hash" unless options.is_a?(Hash)
+      raise ArgumentError, "Parameter 'options' has to be a Hash" unless options.is_a?(Hash)
 
       # Make sure oll options values are nil OR arrays of symbols
       options.each_pair do |k,v|
         unless v.nil? || v.is_a?(Symbol) || (v.is_a?(Array) && v.all?{ |e| e.is_a?(Symbol)})
-          raise ArgumentError, "Values of parameter 'options' should all be arrays or nil" 
+          raise ArgumentError, "All values of parameter 'options' have to be arrays (or nil)"
         end
         
         options[k] = [v] unless v.is_a?(Array) || v.nil?
@@ -21,7 +43,7 @@ module RedundantLinks
       self.redundant_links_options = options
       
       options.keys.each do |klass|
-        raise ArgumentError, "Keys of parameter 'options' should all be classes" unless klass.is_a?(Class)
+        raise ArgumentError, "All keys of parameter 'options' have to be classes" unless klass.is_a?(Class)
         
         klass.class_eval <<-EOV
           has_many :redundant_links, :as => :to, :dependent => :delete_all
