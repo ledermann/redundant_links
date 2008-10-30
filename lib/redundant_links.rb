@@ -15,7 +15,8 @@ module RedundantLinks
     def check_scope_for_redundant_links(method_name, action)
       if method_name.to_s =~ /\Aredundant\_linked\_\w+/ 
         association_name = method_name.to_s.gsub 'redundant_linked_', ''
-        send(action, "scope_for_redundant_linked_#{association_name}")
+        model = association_name.classify.constantize rescue nil
+        model.send(action, "scope_for_redundant_linked_#{self.class.to_s.underscore}", self)
       end
     end
   end
@@ -66,14 +67,6 @@ module RedundantLinks
         klass.class_eval <<-EOV
           has_many :redundant_links, :as => :to, :dependent => :delete_all
 
-          # Generate scope
-          def scope_for_redundant_linked_#{self.to_s.tableize}
-            #{self}.scoped :joins => "INNER JOIN redundant_links ON (redundant_links.to_id     = \#{self.id.is_a?(String) ? '"' + self.id + '"' : self.id }
-                                                                 AND redundant_links.to_type   = '#{klass.base_class}'
-                                                                 AND redundant_links.from_id   = #{self.to_s.tableize}.id
-                                                                 AND redundant_links.from_type = '#{self}')"
-          end
-
           # Update links, if master record was changed
           after_update :update_redundant_links_for_#{self.to_s.tableize}
 
@@ -104,6 +97,16 @@ module RedundantLinks
                 record.send :update_redundant_links
               end
             end
+          end
+        EOV
+        
+        # In the detail class: Build a class method to get a scope, e.g. "scope_for_redundant_linked_customer(record)"
+        self.class_eval <<-EOV
+          def self.scope_for_redundant_linked_#{klass.to_s.underscore}(record)
+            scoped :joins => "INNER JOIN redundant_links ON (redundant_links.to_id     = \#{record.id.is_a?(String) ? '"' + record.id + '"' : record.id }
+                                                         AND redundant_links.to_type   = '#{klass.base_class}'
+                                                         AND redundant_links.from_id   = #{self.to_s.tableize}.id
+                                                         AND redundant_links.from_type = '#{self}')"
           end
         EOV
       end
