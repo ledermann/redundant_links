@@ -1,7 +1,23 @@
 module RedundantLinks
   def self.included(base)
     base.extend ClassMethods
-    require 'redundant_link.rb'
+    require 'redundant_link' # model class
+    
+    def method_missing(method_name, *args)
+      check_scope_for_redundant_links(method_name, :send) || super
+    end
+    
+    def respond_to?(method_name)
+      check_scope_for_redundant_links(method_name, :respond_to?) || super
+    end
+    
+  private
+    def check_scope_for_redundant_links(method_name, action)
+      if method_name.to_s =~ /\Aredundant\_linked\_\w+/ 
+        association_name = method_name.to_s.gsub 'redundant_linked_', ''
+        send(action, "scope_for_redundant_linked_#{association_name}")
+      end
+    end
   end
   
   module ClassMethods
@@ -29,14 +45,16 @@ module RedundantLinks
     # For creating and updating the join table there are some hooks installed
     def has_redundant_links(options)
       raise ArgumentError, "Parameter 'options' has to be a Hash" unless options.is_a?(Hash)
+      raise ArgumentError, "Class #{self} has to be a key of parameter 'options', too!" unless options[self]
 
-      # Make sure oll options values are nil OR arrays of symbols
       options.each_pair do |k,v|
-        unless v.nil? || v.is_a?(Symbol) || (v.is_a?(Array) && v.all?{ |e| e.is_a?(Symbol)})
-          raise ArgumentError, "All values of parameter 'options' have to be arrays (or nil)"
-        end
-        
+        # Make sure all values are arrays
         options[k] = [v] unless v.is_a?(Array) || v.nil?
+        
+        # Make sure all options values are nil OR arrays of symbols
+        unless options[k].nil? || options[k].all? { |e| e.is_a?(Symbol) }
+          raise ArgumentError, "All values of parameter 'options' have to be arrays of symbol (or nil)"
+        end
       end
       
       cattr_accessor :redundant_links_options
@@ -49,7 +67,7 @@ module RedundantLinks
           has_many :redundant_links, :as => :to, :dependent => :delete_all
 
           # Generate scope
-          def redundant_linked_#{self.to_s.tableize}
+          def scope_for_redundant_linked_#{self.to_s.tableize}
             #{self}.scoped :joins => "INNER JOIN redundant_links ON (redundant_links.to_id     = \#{self.id.is_a?(String) ? '"' + self.id + '"' : self.id }
                                                                  AND redundant_links.to_type   = '#{klass.base_class}'
                                                                  AND redundant_links.from_id   = #{self.to_s.tableize}.id

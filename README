@@ -2,7 +2,7 @@ redundant_links
 ===============
 
 Automatic handling of a join table for indirect associations
-Plugin for Ruby on Rails
+Plugin for Ruby on Rails 2.1 (or newer)
 
 
 Example
@@ -32,14 +32,16 @@ class Note < ActiveRecord::Base
 end
 
 
+contact = Contact.find(123)
+
 Now you can do:
 
 With plain Rails magic:
-Contact.find(123).notes
+contact.notes
 => Gives you only the notes which directly belong to the contact
 
 With this plugin:
-Contact.find(123).redundant_linked_notes
+contact.redundant_linked_notes
 => Gives you the notes which either directly belong to the contact or 
    belong to orders of this contact
 

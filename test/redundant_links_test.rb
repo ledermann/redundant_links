@@ -69,15 +69,27 @@ class RedundantLinksTest < Test::Unit::TestCase
     teardown_db
   end
 
-  def test_links
+  def test_count
     assert_equal 2, RedundantLink.count
     assert_equal 1, @customer.redundant_links.count
     assert_equal 1, @order.redundant_links.count
   end
   
   def test_linked_notes
-    assert_equal @note, @order.redundant_linked_notes.first
-    assert_equal @note, @customer.redundant_linked_notes.first
+    assert_equal [ @note ], @customer.redundant_linked_notes
+    assert_equal [ @note ], @order.redundant_linked_notes
+  end
+
+  def test_respond_to
+    assert !@customer.respond_to?(:foobar)
+    assert !@customer.respond_to?(:redundant_linked_foos)
+    assert @customer.respond_to?(:redundant_linked_notes)
+  end
+  
+  def test_method_missing
+    assert_raises(NoMethodError) { @customer.foobar }
+    assert_raises(NoMethodError) { @customer.redundant_linked_foos }
+    assert_nothing_raised { @customer.redundant_linked_notes }
   end
   
   def test_change_note
@@ -116,10 +128,10 @@ class RedundantLinksTest < Test::Unit::TestCase
     order = Order.create!
     note = order.notes.create!
 
-    assert_equal false, @customer.redundant_linked_notes.include?(note)
+    assert !@customer.redundant_linked_notes.include?(note)
     last_count = RedundantLink.count
     order.update_attributes :customer => @customer
-    assert_equal true, @customer.redundant_linked_notes.include?(note)
+    assert @customer.redundant_linked_notes.include?(note)
     assert_equal last_count+1, RedundantLink.count
   end
   
