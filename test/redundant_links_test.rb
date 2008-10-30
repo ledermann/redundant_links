@@ -54,7 +54,7 @@ end
 class Note < ActiveRecord::Base
   belongs_to :object, :polymorphic => true
   
-  has_redundant_links Note => :object, Order => :customer, Customer => nil
+  has_redundant_links Note => :object, Order => :customer, Contact => nil
 end
 
 class RedundantLinksTest < Test::Unit::TestCase
@@ -97,6 +97,13 @@ class RedundantLinksTest < Test::Unit::TestCase
     @note.update_attributes! :object => other_order
     assert_equal 0, @order.redundant_links.count
     assert_equal 1, other_order.redundant_links.count
+  end
+  
+  def test_update_customer
+    last_max = RedundantLink.maximum(:id)
+    @customer.update_attributes! :name => 'Joe'
+    assert_equal last_max, RedundantLink.maximum(:id)
+    assert_equal [ @note ], @customer.redundant_linked_notes
   end
   
   def test_change_order_to_other_customer
