@@ -27,20 +27,40 @@ module RedundantLinks
     #
     # === Options
     #
-    # The method expects a hash with the classes as keys and the association fields as values
+    # The method expects a hash with the classes as keys and the targets as values
     #
     #
-    # === Example
+    # === Some examples
     #
-    # class Note << ActiveRecord::Base
+    # 1) Singular targets
+    # class Note < ActiveRecord::Base
     #   has_redundant_links Note => :object, 
     #                       Order => :contact, 
     #                       Contact => nil
     # end
+    #
+    # 2) Multiple singular targets
+    # class Note < ActiveRecord::Base
+    #   has_redundant_links Note => :object,
+    #                       Payment => [ :payer, :payee ],
+    #                       Contact => nil
+    # end
+    #
+    # 3) Plural targets
+    # class Note < ActiveRecord::Base
+    #    has_redundant_links Note => :object,
+    #                        Deal => :parties,
+    #                        Contact => nil
+    # end
+    #
+    # class Deal
+    #   has_many :parties, :class_name => 'Contact'
+    # end
+    #
     #  
     # == Created methods
     #  
-    # * Instance method <tt>redundant_linked_notes</tt> for Order and Contact
+    # * Instance method <tt>redundant_linked_notes</tt> for all target classes (in examples: Order, Payment, Deal, Contact)
     # * Class method <tt>rebuild_redundant_links</tt> for Note (useful for first time fill up of the join table)
     #
     # For creating and updating the join table there are some hooks installed
@@ -73,15 +93,21 @@ module RedundantLinks
 
             def update_redundant_links_for_#{self.to_s.tableize}
               first_record = redundant_linked_#{self.to_s.tableize}.first
+              return unless first_record
             
               changed = false
               if targets = #{self}.redundant_links_options[#{klass}]
-                targets.each do |target|              
-                  if target_object = self.send(target)
-                    if first_record
-                      changed = true if not RedundantLink.exists?(:from_id => first_record.id, :from_type => first_record.class.base_class.to_s, :to_id => target_object.id, :to_type => target_object.class.base_class.to_s)
-                    else
-                      changed = true
+                targets.each do |target|     
+                  if target_objects = self.send(target)
+                    target_objects = [ target_objects ] unless target_objects.is_a?(Array)
+
+                    target_objects.each do |target_object|
+                      if first_record
+                        changed = true if not RedundantLink.exists?(:from_id => first_record.id, :from_type => first_record.class.base_class.to_s, :to_id => target_object.id, :to_type => target_object.class.base_class.to_s)
+                      else
+                        changed = true
+                      end
+                      break if changed
                     end
                   else
                     if first_record
@@ -114,7 +140,8 @@ module RedundantLinks
       end
 
       has_many :redundant_links, :as => :from, :dependent => :delete_all
-      after_save :update_redundant_links
+      after_create :create_redundant_links
+      after_update :update_redundant_links
       
       send :include, RedundantLinks::InstanceMethods
       
@@ -136,7 +163,12 @@ module RedundantLinks
     
   private
     def update_redundant_links
-      redundant_links.delete_all unless new_record?
+      # TODO: Only delete/create if something was changed!
+      redundant_links.delete_all
+      create_all_redundant_links
+    end
+    
+    def create_redundant_links
       create_all_redundant_links
     end
 
@@ -147,13 +179,16 @@ module RedundantLinks
         if base_object.is_a?(klass)
           if targets = self.class.redundant_links_options[klass]
             targets.each do |target|
-              if target_object = base_object.send(target)
-                unless @stored_redundant_links.include?(target_object)
-                  self.redundant_links.create! :to => target_object
-                  @stored_redundant_links << target_object
+              if target_objects = base_object.send(target)
+                target_objects = [ target_objects ] unless target_objects.is_a?(Array)
+                
+                target_objects.each do |target_object|
+                  unless @stored_redundant_links.include?(target_object)
+                    self.redundant_links.create! :to => target_object
+                    @stored_redundant_links << target_object
+                  end
+                  create_all_redundant_links(target_object)
                 end
-          
-                create_all_redundant_links(target_object)
               end
             end
           end

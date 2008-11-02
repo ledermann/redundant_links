@@ -72,4 +72,9 @@ In your detail model place this
 See the source code for more information about the options hash.
 
 
+ToDo
+====
+
+- Some optimizations, so updating join table records is only made if it's needed
+
 Copyright (c) 2008 Georg Ledermann, released under the MIT license
