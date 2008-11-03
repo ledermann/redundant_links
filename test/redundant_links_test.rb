@@ -53,11 +53,12 @@ class Order < ActiveRecord::Base
 end
 class Note < ActiveRecord::Base
   belongs_to :object, :polymorphic => true
-  
+
   has_redundant_links Note => :object, Order => :customer, Contact => nil
 end
 
 class RedundantLinksTest < Test::Unit::TestCase
+
   def setup
     setup_db
     @customer = Customer.create!
@@ -90,6 +91,13 @@ class RedundantLinksTest < Test::Unit::TestCase
     assert_raises(NoMethodError) { @customer.foobar }
     assert_raises(NoMethodError) { @customer.redundant_linked_foos }
     assert_nothing_raised { @customer.redundant_linked_notes }
+  end
+  
+  def test_scope
+    assert Note.respond_to?(:scope_for_redundant_linked_contact)
+    assert Note.respond_to?(:scope_for_redundant_linked_order)
+    assert !Note.respond_to?(:scope_for_redundant_linked_note)
+    assert !Note.respond_to?(:scope_for_redundant_linked_customer)
   end
   
   def test_change_note

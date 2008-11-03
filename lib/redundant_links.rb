@@ -16,7 +16,7 @@ module RedundantLinks
       if method_name.to_s =~ /\Aredundant\_linked\_\w+/ 
         association_name = method_name.to_s.gsub 'redundant_linked_', ''
         model = association_name.classify.constantize rescue nil
-        model.send(action, "scope_for_redundant_linked_#{self.class.base_class.to_s.underscore}", self)
+        model.send(action, "scope_for_redundant_linked_#{self.class.base_class.to_s.split('::').last.underscore}", self)
       end
     end
   end
@@ -84,16 +84,15 @@ module RedundantLinks
       options.keys.each do |klass|
         raise ArgumentError, "All keys of parameter 'options' have to be classes" unless klass.is_a?(Class)
         
-        self_table_name = self.to_s.split("::").last.tableize
         unless klass == self
           klass.class_eval <<-EOV
             has_many :redundant_links, :as => :to, :dependent => :delete_all
 
             # Update links, if master record was changed
-            after_update :update_redundant_links_for_#{self_table_name}
+            after_update :update_redundant_links_for_#{self.table_name}
 
-            def update_redundant_links_for_#{self_table_name}
-              first_record = redundant_linked_#{self_table_name}.first
+            def update_redundant_links_for_#{self.table_name}
+              first_record = redundant_linked_#{self.table_name}.first
               return unless first_record
             
               changed = false
@@ -121,24 +120,23 @@ module RedundantLinks
               end
             
               if changed
-                self.redundant_linked_#{self_table_name}.each do |record|
+                self.redundant_linked_#{self.table_name}.each do |record|
                   record.send :update_redundant_links
                 end
               end
             end
           EOV
-        end
         
-        # In the detail class: Build a class method to get a scope, e.g. "scope_for_redundant_linked_customer(record)"
-        klass_name = klass.base_class.to_s.underscore
-        self.class_eval <<-EOV
-          def self.scope_for_redundant_linked_#{klass_name}(record)
-            scoped :joins => "INNER JOIN redundant_links ON (redundant_links.to_id     = \#{record.id.is_a?(String) ? '"' + record.id + '"' : record.id }
-                                                         AND redundant_links.to_type   = '\#{record.class.base_class}'
-                                                         AND redundant_links.from_id   = #{self_table_name}.id
-                                                         AND redundant_links.from_type = '#{self_table_name.classify}')"
-          end
-        EOV
+          # In the detail class: Build a class method to get a scope, e.g. "scope_for_redundant_linked_customer(record)"
+          self.class_eval <<-EOV
+            def self.scope_for_redundant_linked_#{klass.base_class.to_s.split("::").last.underscore}(record)
+              scoped :joins => "INNER JOIN redundant_links ON (redundant_links.to_id     = \#{record.id.is_a?(String) ? '"' + record.id + '"' : record.id }
+                                                           AND redundant_links.to_type   = '\#{record.class.base_class}'
+                                                           AND redundant_links.from_id   = #{self.table_name}.id
+                                                           AND redundant_links.from_type = '#{self.table_name.classify}')"
+            end
+          EOV
+        end
       end
 
       has_many :redundant_links, :as => :from, :dependent => :delete_all
