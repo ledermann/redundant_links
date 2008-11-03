@@ -130,13 +130,13 @@ module RedundantLinks
         end
         
         # In the detail class: Build a class method to get a scope, e.g. "scope_for_redundant_linked_customer(record)"
-        klass_name = klass.to_s.split("::").last.underscore
+        klass_name = klass.base_class.to_s.underscore
         self.class_eval <<-EOV
           def self.scope_for_redundant_linked_#{klass_name}(record)
             scoped :joins => "INNER JOIN redundant_links ON (redundant_links.to_id     = \#{record.id.is_a?(String) ? '"' + record.id + '"' : record.id }
                                                          AND redundant_links.to_type   = '\#{record.class.base_class}'
-                                                         AND redundant_links.from_id   = #{self.to_s.tableize}.id
-                                                         AND redundant_links.from_type = '#{self}')"
+                                                         AND redundant_links.from_id   = #{self_table_name}.id
+                                                         AND redundant_links.from_type = '#{self_table_name.classify}')"
           end
         EOV
       end
