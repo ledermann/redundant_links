@@ -84,15 +84,16 @@ module RedundantLinks
       options.keys.each do |klass|
         raise ArgumentError, "All keys of parameter 'options' have to be classes" unless klass.is_a?(Class)
         
+        self_table_name = self.to_s.split("::").last.tableize
         unless klass == self
           klass.class_eval <<-EOV
             has_many :redundant_links, :as => :to, :dependent => :delete_all
 
             # Update links, if master record was changed
-            after_update :update_redundant_links_for_#{self.to_s.tableize}
+            after_update :update_redundant_links_for_#{self_table_name}
 
-            def update_redundant_links_for_#{self.to_s.tableize}
-              first_record = redundant_linked_#{self.to_s.tableize}.first
+            def update_redundant_links_for_#{self_table_name}
+              first_record = redundant_linked_#{self_table_name}.first
               return unless first_record
             
               changed = false
@@ -120,7 +121,7 @@ module RedundantLinks
               end
             
               if changed
-                self.redundant_linked_#{self.to_s.tableize}.each do |record|
+                self.redundant_linked_#{self_table_name}.each do |record|
                   record.send :update_redundant_links
                 end
               end
@@ -129,8 +130,9 @@ module RedundantLinks
         end
         
         # In the detail class: Build a class method to get a scope, e.g. "scope_for_redundant_linked_customer(record)"
+        klass_name = klass.to_s.split("::").last.underscore
         self.class_eval <<-EOV
-          def self.scope_for_redundant_linked_#{klass.base_class.to_s.underscore}(record)
+          def self.scope_for_redundant_linked_#{klass_name}(record)
             scoped :joins => "INNER JOIN redundant_links ON (redundant_links.to_id     = \#{record.id.is_a?(String) ? '"' + record.id + '"' : record.id }
                                                          AND redundant_links.to_type   = '\#{record.class.base_class}'
                                                          AND redundant_links.from_id   = #{self.to_s.tableize}.id
