@@ -7,7 +7,7 @@ module RedundantLinks
       check_scope_for_redundant_links(method_name, :send) || super
     end
     
-    def respond_to?(method_name)
+    def respond_to?(method_name, include_private = false)
       check_scope_for_redundant_links(method_name, :respond_to?) || super
     end
     
@@ -65,6 +65,9 @@ module RedundantLinks
     #
     # For creating and updating the join table there are some hooks installed
     def has_redundant_links(options)
+      # don't allow multiple calls
+      return if self.included_modules.include?(RedundantLinks::InstanceMethods)
+      
       raise ArgumentError, "Parameter 'options' has to be a Hash" unless options.is_a?(Hash)
       raise ArgumentError, "Class #{self} has to be a key of parameter 'options', too!" unless options[self]
 
@@ -150,9 +153,12 @@ module RedundantLinks
           transaction do
             RedundantLink.delete_all :from_type => self.to_s
         
+            count = 0
             find(:all).each do |record| 
               record.send :create_all_redundant_links
+              count += 1
             end
+            count
           end
         end
       end
@@ -173,25 +179,22 @@ module RedundantLinks
     end
 
     def create_all_redundant_links(base_object=self)
-      @stored_redundant_links = [] if base_object == self
-
       self.class.redundant_links_options.keys.each do |klass|
-        if base_object.is_a?(klass)
+        if base_object.class.name == klass.name # strange, does not work with "is_a?" FIXME!
           if targets = self.class.redundant_links_options[klass]
             targets.each do |target|
               if target_objects = base_object.send(target)
                 target_objects = [ target_objects ] unless target_objects.is_a?(Array)
                 
                 target_objects.each do |target_object|
-                  unless @stored_redundant_links.include?(target_object)
-                    self.redundant_links.create! :to => target_object
-                    @stored_redundant_links << target_object
-                  end
+                  self.redundant_links.create! :to => target_object
                   create_all_redundant_links(target_object)
                 end
               end
             end
           end
+          
+          break
         end
       end
     end
