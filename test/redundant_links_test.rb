@@ -24,6 +24,7 @@ def setup_db
       t.column :object_id, :integer
       t.column :object_type, :string, :limit => 20
       t.column :content, :text
+      t.column :type, :string
     end
     
     create_table :redundant_links, :force => true do |t|
@@ -50,11 +51,14 @@ end
 class Order < ActiveRecord::Base
   belongs_to :customer
   has_many :notes, :as => :object
+  has_many :derived_notes, :as => :object
 end
 class Note < ActiveRecord::Base
   belongs_to :object, :polymorphic => true
 
   has_redundant_links Note => :object, Order => :customer, Contact => nil
+end
+class DerivedNote < Note
 end
 
 class RedundantLinksTest < Test::Unit::TestCase
@@ -168,5 +172,12 @@ class RedundantLinksTest < Test::Unit::TestCase
     
     Note.rebuild_redundant_links
     assert_equal before_count, RedundantLink.count
+  end
+  
+  def test_sti
+    @derived_note = @order.derived_notes.create!
+    assert_equal 2, @order.redundant_links.count 
+    assert_equal [ @derived_note ], @customer.redundant_linked_derived_notes
+    assert_equal [ @note, @derived_note ], @customer.redundant_linked_notes
   end
 end

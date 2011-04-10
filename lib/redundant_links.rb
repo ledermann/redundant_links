@@ -180,7 +180,7 @@ module RedundantLinks
 
     def create_all_redundant_links(base_object=self)
       self.class.redundant_links_options.keys.each do |klass|
-        if base_object.class.name == klass.name # strange, does not work with "is_a?" FIXME!
+        if base_object.is_a?(klass)
           if targets = self.class.redundant_links_options[klass]
             targets.each do |target|
               if target_objects = base_object.send(target)
